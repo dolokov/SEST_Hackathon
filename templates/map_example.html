@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+  <link rel="stylesheet" type="text/css"
+    href="https://js.api.here.com/v3/3.0/mapsjs-ui.css" />
+  <script type="text/javascript" charset="UTF-8"
+    src="https://js.api.here.com/v3/3.0/mapsjs-core.js"></script>
+  <script type="text/javascript" charset="UTF-8"
+    src="https://js.api.here.com/v3/3.0/mapsjs-service.js"></script>
+  <script type="text/javascript" charset="UTF-8"
+    src="https://js.api.here.com/v3/3.0/mapsjs-ui.js"></script>
+  <script type="text/javascript" charset="UTF-8"
+    src="https://js.api.here.com/v3/3.0/mapsjs-mapevents.js"></script>
+
+</head>
+<body>
+  <div id="map" style="width: 100%; height: 400px; background: grey" />
+  <script  type="text/javascript" charset="UTF-8" >
+    
+/**
+ * Moves the map to display over Berlin
+ *
+ * @param  {H.Map} map      A HERE Map instance within the application
+ */
+function moveMapToBerlin(map){
+  map.setCenter({lat:52.5159, lng:13.3777});
+  map.setZoom(14);
+}
+
+function moveMapToActualPosition(map){
+
+}
+
+
+
+/**
+ * Boilerplate map initialization code starts below:
+ */
+
+//Step 1: initialize communication with the platform
+var platform = new H.service.Platform({
+  app_id: "{{ app_id }}",
+  app_code: "{{ app_code }}" ,
+  useCIT: true,
+  useHTTPS: true
+});
+var defaultLayers = platform.createDefaultLayers();
+
+//Step 2: initialize a map  - not specificing a location will give a whole world view.
+var map = new H.Map(document.getElementById('map'),
+  defaultLayers.normal.map);
+
+//Step 3: make the map interactive
+// MapEvents enables the event system
+// Behavior implements default interactions for pan/zoom (also on mobile touch environments)
+var behavior = new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+
+// Create the default UI components
+var ui = H.ui.UI.createDefault(map, defaultLayers);
+
+// Now use the map as required...
+//moveMapToBerlin(map);
+
+// default on brandenburger tor
+var act_pos = {'lat':52.5159,'lon':13.3777};
+
+
+
+function moveMapToActualPosition(map){
+  map.setCenter({lat:act_pos['lat'], lng:act_pos['lon']});
+  map.setZoom(14);
+}
+
+function success(position) {
+  act_pos['lat'] = position.coords.latitude;
+  act_pos['lon'] = position.coords.longitude;
+  //alert(act_pos['lat']+' '+act_pos['lon']); // 52.5055 , 13.3937
+  moveMapToActualPosition(map);
+}
+
+function error(msg) {
+  alert('error occured, no geolocation available');
+}
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(success, error);
+
+} else {
+  error('not supported');
+}
+
+
+
+//moveMapToActualPosition(map);
+
+  </script>
+</body>
+</html>
