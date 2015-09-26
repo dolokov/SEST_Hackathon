@@ -16,27 +16,17 @@
 </head>
 <body>
   <div id="map" style="width: 100%; height: 400px; background: grey" />
+  <input type="text" id="text_dst_address" value="destination"><input type="submit" value="get my bike!" onclick="findBike();">
+
   <script  type="text/javascript" charset="UTF-8" >
-    
-/**
- * Moves the map to display over Berlin
- *
- * @param  {H.Map} map      A HERE Map instance within the application
- */
-function moveMapToBerlin(map){
-  map.setCenter({lat:52.5159, lng:13.3777});
-  map.setZoom(14);
-}
 
-function moveMapToActualPosition(map){
+// websocket connection to server
+var ws = -1;
 
-}
-
-
-
-/**
- * Boilerplate map initialization code starts below:
- */
+// default on brandenburger tor
+var act_pos = {'lat':52.5159,'lon':13.3777};
+var dst_pos = {'lat':52.5159,'lon':13.3777};
+var bike_pos = {'lat':52.5159,'lon':13.3777};
 
 //Step 1: initialize communication with the platform
 var platform = new H.service.Platform({
@@ -45,26 +35,35 @@ var platform = new H.service.Platform({
   useCIT: true,
   useHTTPS: true
 });
-var defaultLayers = platform.createDefaultLayers();
 
-//Step 2: initialize a map  - not specificing a location will give a whole world view.
-var map = new H.Map(document.getElementById('map'),
-  defaultLayers.normal.map);
+  
+function init_WebSocket(){
+    var ws_server_address = "ws://{{ domain }}/mapWS";
+    ws = new WebSocket(ws_server_address);
+    ws.onopen = function(){
+        // send string with the floorplan source for the server to read
+        //alert('opened websocket');
+        
+        ws.send('hello server');
+    }
+    ws.onmessage = function (evt) 
+    { 
+        // message style contours_walls$$c1x1,c1y1,c1x2,c1y2,...,c1xn,c1yn$c2x1,c2y1,c2x2,c2y2,...,c2xn,c2yn$...$$
+        var received_msg = evt.data;
+        
+        if(received_msg.indexOf("contours_") > -1){
+            //contours_points = parsed2listOfPoints(received_msg);
+        }
+    }
+} 
 
-//Step 3: make the map interactive
-// MapEvents enables the event system
-// Behavior implements default interactions for pan/zoom (also on mobile touch environments)
-var behavior = new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
-
-// Create the default UI components
-var ui = H.ui.UI.createDefault(map, defaultLayers);
-
-// Now use the map as required...
-//moveMapToBerlin(map);
-
-// default on brandenburger tor
-var act_pos = {'lat':52.5159,'lon':13.3777};
-
+function send_ws(message){
+  // if initialized
+  if(ws == -1){
+    init_WebSocket();
+  }else{ws.send(message);
+  }
+}
 
 
 function moveMapToActualPosition(map){
@@ -77,12 +76,87 @@ function success(position) {
   act_pos['lon'] = position.coords.longitude;
   //alert(act_pos['lat']+' '+act_pos['lon']); // 52.5055 , 13.3937
   moveMapToActualPosition(map);
+
+  // send position to server
+  send_ws( "act_pos#" + act_pos['lat'] + "$" + act_pos['lon'] );
 }
 
 function error(msg) {
   alert('error occured, no geolocation available');
 }
 
+function onReverseGeoCodingSuccess(result) {
+  var locations = result.response.view[0].result;
+  position = {
+      lat: locations[0].location.displayPosition.latitude,
+      lng: locations[0].location.displayPosition.longitude
+  };
+  dst_pos['lat'] = position.lat;
+  dst_pos['lon'] = position.lon;
+ }
+
+function onReverseGeoCodingError(result) {
+  alert("sorry, i couldn't find this address!");
+  //var locations = result.response.view[0].result;
+} 
+
+function geocode(platform) {
+  var geocoder = platform.getGeocodingService(),
+    geocodingParameters = {
+      searchText: document.getElementById("text_dst_address"),
+      jsonattributes : 1
+    };
+
+  geocoder.geocode(
+    geocodingParameters,
+    onReverseGeoCodingSuccess,
+    onReverseGeoCodingError
+  );
+}
+
+
+
+function findBike(){
+  // first reverse geocode address
+  //var address = document.getElementById("text_dst_address");
+  geocode(platform)
+  // send lat/long to server
+    send_ws( "dst_pos#" + dst_pos['lat'] + "$" + dst_pos['lon'] );
+}
+
+
+
+// Create a marker icon from an image URL:
+var icon_pedestrian = new H.map.Icon('http://{{domain}}/pedestrian.png');
+
+// Create a marker using the previously instantiated icon:
+var marker_pedestrian = new H.map.Marker({ lat: 52.5, lng: 13.4 }, { icon: icon_pedestrian });
+
+/**
+ * Boilerplate map initialization code starts below:
+ */
+
+var defaultLayers = platform.createDefaultLayers();
+
+//Step 2: initialize a map  - not specificing a location will give a whole world view.
+var map = new H.Map(document.getElementById('map'),
+  defaultLayers.normal.map);
+
+map.addObject(marker_pedestrian);
+
+//Step 3: make the map interactive
+// MapEvents enables the event system
+// Behavior implements default interactions for pan/zoom (also on mobile touch environments)
+var behavior = new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+
+// Create the default UI components
+var ui = H.ui.UI.createDefault(map, defaultLayers);
+
+
+
+init_WebSocket();
+
+// retrieve geolocation
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(success, error);
 
@@ -92,8 +166,6 @@ if (navigator.geolocation) {
 
 
 
-//moveMapToActualPosition(map);
-
-  </script>
+</script>
 </body>
 </html>

@@ -3,7 +3,7 @@ import tornado.httpserver, tornado.ioloop, tornado.options, tornado.web, os.path
 from tornado.options import define, options
 
 import tornado.websocket
-
+import uuid
 from tornado import gen
 
 import Settings
@@ -40,7 +40,7 @@ class MapHandler(tornado.web.RequestHandler):
     def get(self,params=None):
         # render html page
         if not params:
-            self.render("templates/map_example.html",app_id = Settings.HERE_APP_ID, app_code = Settings.HERE_APP_CODE)
+            self.render("templates/map_example.html",domain = Settings.DOMAIN,app_id = Settings.HERE_APP_ID, app_code = Settings.HERE_APP_CODE)
         else:
             pass
 
@@ -50,6 +50,9 @@ class MapHandler(tornado.web.RequestHandler):
         pass
 
 class MapWebSocketHandler(tornado.websocket.WebSocketHandler):
+    def check_origin(self, origin):
+        return True
+    
     def open(self):
         self.id = uuid.uuid4()
         new_connection = ClientParameters(self.id)
@@ -59,12 +62,19 @@ class MapWebSocketHandler(tornado.websocket.WebSocketHandler):
         print 'websocket openend for uuid',self.id
 
     def on_message(self,message):    
-        print '\nserver received:', message
+        print 'server received:', message
 
         # get name of floorplan and send back wall candidates
-        if message.startswith('fn_floorplan#'):
+        if message.startswith('act_pos#'):
             #client_connections[self.id].sendContour2JS('contours_walls', client_connections[self.id].pipelineCoordinator.getContoursWallCandidates())
-            pass
+            lat,lon = message.split('#')[1].split('$')
+            lat,lon = float(lat), float(lon)
+            print 'user lat',lat,'lon',lon
+        if message.startswith('dst_pos#'):
+            #client_connections[self.id].sendContour2JS('contours_walls', client_connections[self.id].pipelineCoordinator.getContoursWallCandidates())
+            lat,lon = message.split('#')[1].split('$')
+            lat,lon = float(lat), float(lon)
+            print 'dst lat',lat,'lon',lon
     
 
     def on_close(self):
