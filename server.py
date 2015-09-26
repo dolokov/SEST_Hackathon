@@ -6,7 +6,7 @@ import tornado.websocket
 
 from tornado import gen
 
-import settings
+import Settings
 
 class ClientParameters(object):
     def __init__(self,_id):
@@ -16,7 +16,7 @@ class ClientParameters(object):
 client_connections = {}
 
 
-define("port", default=8888, help="run on the given port", type=int)
+define("port", default=80, help="run on the given port", type=int)
 
 
 class Application(tornado.web.Application):
@@ -40,7 +40,7 @@ class MapHandler(tornado.web.RequestHandler):
     def get(self,params=None):
         # render html page
         if not params:
-            self.render("templates/map.html")
+            self.render("templates/map_example.html",app_id = Settings.HERE_APP_ID, app_code = Settings.HERE_APP_CODE)
         else:
             pass
 
@@ -64,7 +64,7 @@ class MapWebSocketHandler(tornado.websocket.WebSocketHandler):
         # get name of floorplan and send back wall candidates
         if message.startswith('fn_floorplan#'):
             #client_connections[self.id].sendContour2JS('contours_walls', client_connections[self.id].pipelineCoordinator.getContoursWallCandidates())
-            
+            pass
     
 
     def on_close(self):
