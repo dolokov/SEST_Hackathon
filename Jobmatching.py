@@ -53,10 +53,7 @@ class Job(Route):
 		walking_factor = get_distance(driver.position,self.position)/driver.radius
 		if walking_factor > 1:
 			return False
-
-		print walking_factor
-
-		print self.get_job_distance(), get_distance(driver.target,self.target)
+			
 		effective_distance_achieved = self.get_job_distance() - get_distance(driver.target,self.target)
 		
 		self.value = max(effective_distance_achieved,0)*VALUE_PER_KM
