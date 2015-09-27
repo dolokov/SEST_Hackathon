@@ -6,9 +6,9 @@ import math
 from datetime import datetime
 
 #MAX_WALKING_DISTANCE_PER_KM_DRIVING = 0.1
-VALUE_PER_KM = 1
 MAX_TIME_DELIVERY = 10
-
+VALUE_PER_KM = 0.3
+COST_PER_KM = 0.1
 
 class Location(object):
 
@@ -33,18 +33,17 @@ class Driver(Route):
 	def print_driver(self):
 
 		print 'Driver from ('+str(self.position.latitude)+','+str(self.position.longitude)+') to ('\
-					+str(self.target.latitude)+','+str(self.target.longitude)+'). Distance: '+str(get_distance(self.position,self.target))+ ' km.'
+					+str(self.target.latitude)+','+str(self.target.longitude)+'). Distance: '+str(get_distance(self.position,self.target))+ ' km. Current time: ' + str(datetime.now()) 
 
 class Job(Route):
 	
-	def __init__(self,ID,position,target,date,timeframe = MAX_TIME_DELIVERY,value = None):
+	def __init__(self,ID,position,target,timestamp_in,latest_arrival = None,value = 0):
 		super(Job,self).__init__(position,target)
-		self.date = date
-		self.timeframe = timeframe
-		self.value = value
-
-	def get_job_distance(self):
-		return get_distance(self.target,self.position)
+		self.timestamp_in = timestamp_in
+		self.latest_arrival = latest_arrival
+		
+		self.distance = get_distance(self.target,self.position)
+		self.value = value - self.distance * COST_PER_KM
 
 	def set_current_value(self, driver):
 
@@ -52,22 +51,40 @@ class Job(Route):
 
 		walking_factor = get_distance(driver.position,self.position)/driver.radius
 		if walking_factor > 1:
-			return False
+			self.value = 'false'
+
+		else:
 			
-		effective_distance_achieved = self.get_job_distance() - get_distance(driver.target,self.target)
-		
-		self.value = max(effective_distance_achieved,0)*VALUE_PER_KM
+			effective_distance_achieved = self.distance - get_distance(driver.target,self.target)
+			
+			if not self.latest_arrival:
+				time_factor = 1
+			elif self.latest_arrival < datetime.now(): 
+				time_factor = 3
+			else:
+				# print self.timestamp_in, self.latest_arrival, datetime.now()
+
+				# print self.latest_arrival-self.timestamp_in
+				# print self.latest_arrival-datetime.now()
+				time_factor = 1 + 2*(1- (self.latest_arrival - datetime.now()).seconds*1.0/(self.latest_arrival-self.timestamp_in).seconds)**2
+
+			self.value = max(effective_distance_achieved,0)*VALUE_PER_KM *time_factor - get_distance(self.position,driver.target) * COST_PER_KM
 
 	def print_job(self):
 
 		print 'Job from ('+str(self.position.latitude)+','+str(self.position.longitude)+') to ('\
-					+str(self.target.latitude)+','+str(self.target.longitude)+') with value '+ str(self.value)
+					+str(self.target.latitude)+','+str(self.target.longitude)+') with value '+ str(self.value)\
+					+'. Time_in: '+ str(self.timestamp_in)+', latest arrival: '+ str(self.latest_arrival)
 
 def create_job(db_connection, row):
 	try:
-		position_lat, position_lon = db_connection.execute('SELECT position_lat, position_lon FROM bikes WHERE ID = '+str(row[4])).fetchone()
+		position_lat, position_lon = db_connection.execute('SELECT position_lat, position_lon FROM bikes WHERE ID = '+str(row[5])).fetchone()
 		current_location = Location(position_lat, position_lon)
-		job = Job(row[0],current_location,Location(row[1],row[2]),row[3],MAX_TIME_DELIVERY)
+
+		timestamp_in = datetime.strptime(row[3], '%Y-%m-%d %H:%M:%S.%f')
+		latest_arrival = datetime.strptime(row[4], '%Y-%m-%d %H:%M:%S.%f')
+
+		job = Job(row[0],current_location,Location(row[1],row[2]),timestamp_in, latest_arrival)
 		return job
 	except IndexError:
 		raise IndexError
@@ -122,7 +139,7 @@ def get_closest_bikes(db_connection, driver):
 		job = create_job(db_connection, row)
 		job.set_current_value(driver)
 
-		if job.value: 
+		if job.value != 'false': 
 			i = 0
 			while i < driver.number_of_bikes:
 				if bikes[i]:
@@ -140,7 +157,7 @@ def get_closest_bikes(db_connection, driver):
 	closest_empty = find_closest_empty(db_connection, driver)
 
 	if closest_empty:
-		bikes.append(Job(None,closest_empty,driver.target,datetime.now(),value = None))
+		bikes.append(Job(None,closest_empty,driver.target,datetime.now(),value = 0))
 
 	return bikes
 		

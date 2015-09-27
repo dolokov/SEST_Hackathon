@@ -38,6 +38,28 @@ function keyyydown(ele){
   }
 }
 
+
+$(document).ready(function(){
+  //resizeDiv();
+});
+
+window.onresize = function(event) {
+  resizeDiv();
+}
+
+function resizeDiv() {
+  var vpw = $(window).width();
+  var vph = $(window).height();
+
+  $('#map').css({'height': vph + 'px'});
+  $('#map').css({'width': vpw + 'px'});
+  document.getElementById("map").style.marginTop = "0px";
+  document.getElementById("map").style.marginLeft = "0px";
+
+}
+
+
+
 //$(document).ready(function() {        
   
   //$("#text_dst_address").addClass("ui-corner-all");
